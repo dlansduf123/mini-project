@@ -1,5 +1,10 @@
-package com.example.individualprojectlee;
+package com.example.myindividual;
+
 import androidx.appcompat.app.AppCompatActivity;
+
+import android.os.Bundle;
+
+
 
 import android.content.Context;
 import android.content.Intent;
@@ -9,7 +14,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Build;
-import android.os.Bundle;
+
 import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
@@ -30,7 +35,7 @@ import java.io.OutputStream;
 
 
 public class MainActivity extends AppCompatActivity {
-    private static int RESULT_LOAD_IMAGE = 1;
+    private static final int RESULT_LOAD_IMAGE = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,78 +49,71 @@ public class MainActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, 1);
         }
-        buttonLoadImage.setOnClickListener(new View.OnClickListener() {
+        buttonLoadImage.setOnClickListener(arg0 -> {
+            TextView textView = findViewById(R.id.result_text);
+            textView.setText("");
+            Intent i = new Intent(
+                    Intent.ACTION_PICK,
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
 
-            @Override
-            public void onClick(View arg0) {
-                TextView textView = findViewById(R.id.result_text);
-                textView.setText("");
-                Intent i = new Intent(
-                        Intent.ACTION_PICK,
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-
-                startActivityForResult(i, RESULT_LOAD_IMAGE);
+            startActivityForResult(i, RESULT_LOAD_IMAGE);
 
 
-            }
         });
 
-        detectButton.setOnClickListener(new View.OnClickListener() {
+        detectButton.setOnClickListener(arg0 -> {
 
-            @Override
-            public void onClick(View arg0) {
+            Bitmap bitmap = null;
+            Module module = null;
 
-                Bitmap bitmap = null;
-                Module module = null;
+            //Getting the image from the image view
+            ImageView imageView = (ImageView) findViewById(R.id.image);
 
-                //Getting the image from the image view
-                ImageView imageView = (ImageView) findViewById(R.id.image);
+            try {
+                //Read the image as Bitmap
+                bitmap = ((BitmapDrawable)imageView.getDrawable()).getBitmap();
 
-                try {
-                    //Read the image as Bitmap
-                    bitmap = ((BitmapDrawable)imageView.getDrawable()).getBitmap();
+                //Here we reshape the image into 400*400
+                bitmap = Bitmap.createScaledBitmap(bitmap, 400, 400, true);
 
-                    //Here we reshape the image into 400*400
-                    bitmap = Bitmap.createScaledBitmap(bitmap, 400, 400, true);
-
-                    //Loading the model file.
-                    module = Module.load(fetchModelFile(MainActivity.this, "resnet18_traced.pt"));
-                } catch (IOException e) {
-                    finish();
-                }
-
-                //Input Tensor
-                final Tensor input = TensorImageUtils.bitmapToFloat32Tensor(
-                        bitmap,
-                        TensorImageUtils.TORCHVISION_NORM_MEAN_RGB,
-                        TensorImageUtils.TORCHVISION_NORM_STD_RGB
-                );
-
-                //Calling the forward of the model to run our input
-                final Tensor output = module.forward(IValue.from(input)).toTensor();
-
-
-                final float[] score_arr = output.getDataAsFloatArray();
-
-                // Fetch the index of the value with maximum score
-                float max_score = -Float.MAX_VALUE;
-                int ms_ix = -1;
-                for (int i = 0; i < score_arr.length; i++) {
-                    if (score_arr[i] > max_score) {
-                        max_score = score_arr[i];
-                        ms_ix = i;
-                    }
-                }
-
-                //Fetching the name from the list based on the index
-                String detected_class = Model_classes.ModelClasses.MODEL_CLASSES[ms_ix];
-
-                //Writing the detected class in to the text view of the layout
-                TextView textView = findViewById(R.id.result_text);
-                textView.setText(detected_class);
-
-
+                //Loading the model file.
+                module = Module.load(fetchModelFile(MainActivity.this, "resnet18_traced.pt"));
+            } catch (IOException e) {
+                finish();
             }
+
+            //Input Tensor
+            final Tensor input = TensorImageUtils.bitmapToFloat32Tensor(
+                    bitmap,
+                    TensorImageUtils.TORCHVISION_NORM_MEAN_RGB,
+                    TensorImageUtils.TORCHVISION_NORM_STD_RGB
+            );
+
+            //Calling the forward of the model to run our input
+            assert module != null;
+            final Tensor output = module.forward(IValue.from(input)).toTensor();
+
+
+            final float[] score_arr = output.getDataAsFloatArray();
+
+            // Fetch the index of the value with maximum score
+            float max_score = -Float.MAX_VALUE;
+            int ms_ix = -1;
+            for (int i = 0; i < score_arr.length; i++) {
+                if (score_arr[i] > max_score) {
+                    max_score = score_arr[i];
+                    ms_ix = i;
+                }
+            }
+
+            //Fetching the name from the list based on the index
+            String detected_class = ModelClasses.MODEL_CLASSES[ms_ix];
+
+            //Writing the detected class in to the text view of the layout
+            TextView textView = findViewById(R.id.result_text);
+            textView.setText(detected_class);
+
+
         });
 
     }
@@ -167,12 +165,10 @@ public class MainActivity extends AppCompatActivity {
             return file.getAbsolutePath();
         }
     }
+
+
+
+
+
+
 }
-
-
-
-
-
-
-
-
